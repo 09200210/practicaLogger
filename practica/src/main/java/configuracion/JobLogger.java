@@ -15,51 +15,45 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class JobLogger {
-	private static boolean logToFile;
-	private static boolean logToConsole;
-	private static boolean logMessage;
-	private static boolean logWarning;
-	private static boolean logError;
-	private static boolean logToDatabase;
+	
+	private TypeMessage typeMessage;
+	private LogLocation logLocation;
 	private static Map dbParams;
 	private static Logger logger;
 	public static final int LOG_MESSAGE=1;
 	public static final int LOG_WARNING=2;
 	public static final int LOG_ERROR=3;
-	public JobLogger(boolean logToFileParam, boolean logToConsoleParam, boolean logToDatabaseParam,
-			boolean logMessageParam, boolean logWarningParam, boolean logErrorParam, Map dbParamsMap) throws Exception {
+	public JobLogger(TypeMessage typeMessage,
+			LogLocation logLocation, Map dbParams) throws Exception {
 		logger = Logger.getLogger("MyLog");  
-		logError = logErrorParam;
-		logMessage = logMessageParam;
-		logWarning = logWarningParam;
-		logToDatabase = logToDatabaseParam;
-		logToFile = logToFileParam;
-		logToConsole = logToConsoleParam;
-		dbParams = dbParamsMap;
-		if (!logToConsole && !logToFile && !logToDatabase) {
+		this.typeMessage = typeMessage;
+		this.logLocation = logLocation;
+		this.dbParams = dbParams;
+		if (!logLocation.isLogToConsole() && !logLocation.isLogToFile() && !logLocation.isLogToDatabase()) {
 			throw new Exception("Invalid configuration");
 		}
-		if (!logError && !logMessage && !logWarning) {
+		if (!typeMessage.isLogError() && !typeMessage.isLogMessage() && !typeMessage.isLogWarning()) {
 			throw new Exception("Error or Warning or Message must be specified");
 		}
 	}
 	/**
-	 * This method validates can save in the adequated logs 
+	 * This method validates can save in the proper logs 
 	 * @param messageText
 	 * @param messageType
 	 * @throws Exception
 	 */
-	public static void logMessage(String messageText, int messageType) throws Exception {
+	public void logMessage(String messageText, int messageType) throws Exception {
 		if (messageText != null && messageText.length() != 0) {
 			String formatMessage = createFormattedMessage(messageText,messageType);
 			Level loggingLevel = returnEquivalentLevel(messageType);
-			if(logToConsole) {
+			logger.setUseParentHandlers(false);
+			if(logLocation.isLogToConsole()) {
 				createLogConsole(formatMessage,loggingLevel);
 			}
-			if(logToFile) {
+			if(logLocation.isLogToFile()) {
 				createLogFile(formatMessage,loggingLevel);
 			}
-			if(logToDatabase) {
+			if(logLocation.isLogToDatabase()) {
 				createLogDatabase(formatMessage,messageType);
 			}
 		}
@@ -72,39 +66,39 @@ public class JobLogger {
 	 * @return
 	 * @throws Exception 
 	 */
-	private static String createFormattedMessage(String messageText, int messageType) throws Exception {
+	private String createFormattedMessage(String messageText, int messageType) throws Exception {
 		String message= "";
-		if (logError && messageType==LOG_ERROR) {
+		if (typeMessage.isLogError() && messageType==LOG_ERROR) {
 			message = message + "error ";
 		}
-		else if (logWarning && messageType==LOG_WARNING) {
+		else if (typeMessage.isLogWarning() && messageType==LOG_WARNING) {
 			message = message + "warning ";
 		}
-		else if (logMessage && messageType==LOG_MESSAGE) {
+		else if (typeMessage.isLogMessage() && messageType==LOG_MESSAGE) {
 			message = message + "message " ;
 		}
 		else {
 			throw new Exception("Invalid type of message");
 		}
-		message= message+DateFormat.getDateInstance(DateFormat.LONG).format(new Date()) + ": "+messageText;
+		message= message+DateFormat.getDateInstance(DateFormat.LONG).format(new Date()) + ": "+messageText.trim();
 		return message;
 	}
-	private static Level returnEquivalentLevel(int messageType) throws Exception {
-		if (messageType==LOG_ERROR) {
+	private Level returnEquivalentLevel(int messageType) throws Exception {
+		if (typeMessage.isLogError()&&messageType==LOG_ERROR) {
 			return Level.SEVERE;
 		}
-		else if (logWarning && messageType==LOG_WARNING) {
-			return Level.SEVERE;
+		else if (typeMessage.isLogWarning() && messageType==LOG_WARNING) {
+			return Level.WARNING;
 		}
-		else if (logMessage && messageType==LOG_MESSAGE) {
-			return Level.SEVERE;
+		else if (typeMessage.isLogMessage() && messageType==LOG_MESSAGE) {
+			return Level.INFO;
 		}
 		else {
 			throw new Exception("Invalid type of message");
 		}
 		
 	}
-	private static void createLogConsole(String messageText, Level loggingLevel) {
+	private  void createLogConsole(String messageText, Level loggingLevel) {
 		ConsoleHandler ch = new ConsoleHandler();
 		logger.addHandler(ch);
 		logger.log(loggingLevel, messageText);
@@ -114,7 +108,7 @@ public class JobLogger {
 	 * @param messageText
 	 * @param loggingLevel
 	 */
-	private static void createLogFile(String messageText, Level loggingLevel) {
+	private  void createLogFile(String messageText, Level loggingLevel) {
 		try {
 			String fileLocation = dbParams.get("logFileFolder") + "/logFile.txt";
 			File logFile = new File(fileLocation);
@@ -124,6 +118,7 @@ public class JobLogger {
 			FileHandler fh = new FileHandler(fileLocation);
 			logger.addHandler(fh);
 			logger.log(loggingLevel, messageText);
+			fh.close();
 		}catch(IOException e) {
 			logger.log(Level.SEVERE, "An error while saving log in file has occurred",e);
 		}
@@ -133,7 +128,7 @@ public class JobLogger {
 	 * @param messageText
 	 * @param messageType
 	 */
-	private static void createLogDatabase(String messageText, int messageType)  {
+	private void createLogDatabase(String messageText, int messageType)  {
 		try {
 			Connection connection = null;
 			Properties connectionProps = new Properties();
