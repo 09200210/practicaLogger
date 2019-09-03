@@ -1,0 +1,38 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+#Eclipse
+*.classpath
+*.project
+**/.settings/
+**/bin/
+#Mvn
+mvnw
+mvnw.cmd
+**/.mvn/
+**/target/
+
+#STS
+*.springBeans
+*.DS_Store
+
+#Intellij
+*.iml
+**/.idea/
+
+#React Native
+**/node_modules/
+
+#Visual Code
+**/.history/
+
+#Others
+*.lock
+*.st
